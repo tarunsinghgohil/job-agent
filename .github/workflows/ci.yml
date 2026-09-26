@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (tests + migrations)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    # The migration job below runs against a real PostgreSQL with pgvector,
+    # because SQLite would not catch a PostgreSQL-only migration problem.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: jobagent
+          POSTGRES_PASSWORD: ci-not-a-real-secret
+          POSTGRES_DB: jobagent_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U jobagent -d jobagent_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run tests
+        env:
+          APP_SECRET_KEY: ci-secret-key-at-least-32-characters-long
+          ENVIRONMENT: test
+        run: python -m pytest -q
+
+      - name: Apply migrations against PostgreSQL
+        env:
+          APP_SECRET_KEY: ci-secret-key-at-least-32-characters-long
+          ENVIRONMENT: test
+          DATABASE_URL: postgresql+psycopg://jobagent:ci-not-a-real-secret@localhost:5432/jobagent_test
+        run: python -m alembic upgrade head
+
+      - name: Fail if the models have drifted from the migrations
+        env:
+          APP_SECRET_KEY: ci-secret-key-at-least-32-characters-long
+          ENVIRONMENT: test
+          DATABASE_URL: postgresql+psycopg://jobagent:ci-not-a-real-secret@localhost:5432/jobagent_test
+        run: |
+          python -m alembic revision --autogenerate -m drift-check -o /tmp/drift 2>/dev/null \
+            || python -m alembic revision --autogenerate -m drift-check
+          # A clean autogenerate emits a migration whose body is just `pass`.
+          if grep -rqE "^\s+op\." alembic/versions/*drift_check*.py 2>/dev/null; then
+            echo "::error::Models have drifted from migrations. Generate a migration."
+            cat alembic/versions/*drift_check*.py
+            exit 1
+          fi
+          rm -f alembic/versions/*drift_check*.py
+
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:8000
+        run: npm run build
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # This repository previously shipped a live API key in .env.example.
+      # This check exists so that cannot happen again unnoticed.
+      - name: Check for committed credentials
+        run: |
+          if grep -rInE "(sk-[A-Za-z0-9_-]{20,}|xoxb-[A-Za-z0-9-]{20,}|AKIA[0-9A-Z]{16})" \
+               --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next .; then
+            echo "::error::A credential-shaped string is committed. Remove and rotate it."
+            exit 1
+          fi
+          echo "No credential-shaped strings found."

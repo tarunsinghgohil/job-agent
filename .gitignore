@@ -1,0 +1,17 @@
+.env
+.env.*
+!.env.example
+*.local
+
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+frontend/node_modules/
+frontend/.next/
+
+# Local runtime data: SQLite DB, uploaded resumes, WAL files -- never the repo's business.
+data/
+
+.claude/
