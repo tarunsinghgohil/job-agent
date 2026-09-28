@@ -14,6 +14,7 @@ import { api } from "../../../lib/api";
 import { formatDateTime, formatSalary, titleize } from "../../../lib/format";
 import { usePending, useResource } from "../../../lib/hooks";
 import type { AiReview, CoverLetterResult, Job, ResumeAdviceResult } from "../../../lib/types";
+import { HuntAssessmentCard } from "../../hunt/HuntAssessmentCard";
 
 export function JobDetailView({ jobId }: { jobId: string }) {
   const router = useRouter();
@@ -226,6 +227,8 @@ export function JobDetailView({ jobId }: { jobId: string }) {
               )}
             </Card>
           </CardGrid>
+
+          <HuntAssessmentCard jobId={jobId} />
 
           <Card title="Job description">
             <p className="prose">{data.description || "No description stored."}</p>

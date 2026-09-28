@@ -38,6 +38,7 @@ class AdzunaAdapter(JobSourceAdapter):
     adapter_type = "adzuna"
     display_name = "Adzuna"
     requires_credential = True
+    supports_search = True
     config_schema = [
         {
             "key": "app_id",

@@ -134,6 +134,8 @@ class GreenhouseAdapter(JobSourceAdapter):
             industry="",
             experience_min_years=exp_min,
             experience_max_years=exp_max,
-            posted_at=parse_iso_datetime(entry.get("updated_at") or entry.get("first_published")),
+            # updated_at moves on every edit, so it is never the posting date.
+            posted_at=parse_iso_datetime(entry.get("first_published")),
+            source_updated_at=parse_iso_datetime(entry.get("updated_at")),
             raw=entry,
         )

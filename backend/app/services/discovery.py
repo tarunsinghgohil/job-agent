@@ -168,6 +168,7 @@ def _new_job(user_id: str, source: JobSource, candidate: RawJob, dedupe_key: str
         experience_min_years=candidate.experience_min_years,
         experience_max_years=candidate.experience_max_years,
         posted_at=candidate.posted_at,
+        source_updated_at=getattr(candidate, "source_updated_at", None),
         status="new",
         dedupe_key=dedupe_key,
         first_seen_at=now,
@@ -214,6 +215,51 @@ def _mark_failure(source: JobSource, error: str) -> None:
 # ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
+def _run_queries(adapter, queries: list[SourceQuery], stats: dict) -> list[RawJob]:
+    """Run several query variations against one search-capable provider.
+
+    A single failing query is recorded and skipped; only when *every* query
+    fails does the source count as failed, because one bad keyword should not
+    mark a healthy provider as degraded.
+    """
+    batched = adapter.search_many(queries)
+    if batched is not None:
+        stats["queries_run"] = 1
+        stats["query_errors"] = 0
+        return batched
+
+    seen_signatures: set[tuple] = set()
+    seen_ids: set[str] = set()
+    candidates: list[RawJob] = []
+    failures: list[str] = []
+    attempted = 0
+
+    for query in queries:
+        signature = adapter.query_signature(query)
+        if signature in seen_signatures:
+            continue
+        seen_signatures.add(signature)
+        attempted += 1
+        try:
+            batch = adapter.search(query)
+        except SourceError as exc:
+            failures.append(str(exc))
+            continue
+        for candidate in batch:
+            key = (candidate.external_id or candidate.url or candidate.title or "").strip().lower()
+            if key and key in seen_ids:
+                continue
+            if key:
+                seen_ids.add(key)
+            candidates.append(candidate)
+
+    stats["queries_run"] = attempted
+    stats["query_errors"] = len(failures)
+    if attempted and len(failures) == attempted:
+        raise SourceError(failures[0])
+    return candidates
+
+
 def discover(
     db: Session,
     user_id: str,
@@ -221,14 +267,20 @@ def discover(
     source_ids: list[str] | None = None,
     saved_search_id: str | None = None,
     limit_per_source: int = 50,
+    queries: list[SourceQuery] | None = None,
+    board_query: SourceQuery | None = None,
 ) -> DiscoveryResult:
     """Run every enabled source and ingest what they return.
 
     One bad provider must never cost the user the rest of the run, so each
     source is wrapped individually and its failure recorded on its own row.
+
+    ``queries`` (used by the Job Hunt) runs several search variations against
+    providers that have a search endpoint; board-style providers, which always
+    return a company's whole board, run once with ``board_query`` instead.
     """
     result = DiscoveryResult()
-    query = build_query(
+    query = board_query or build_query(
         db, user_id, saved_search_id=saved_search_id, limit_per_source=limit_per_source
     )
 
@@ -239,7 +291,10 @@ def discover(
             adapter = get_adapter(
                 source.adapter_type, source.config or {}, _resolve_credential(db, source)
             )
-            candidates = adapter.search(query)
+            if queries and getattr(adapter, "supports_search", False):
+                candidates = _run_queries(adapter, queries, stats)
+            else:
+                candidates = adapter.search(query)
         except (SourceError, UnknownAdapterError) as exc:
             message = str(exc)
             _mark_failure(source, message)

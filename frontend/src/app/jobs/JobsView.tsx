@@ -227,6 +227,20 @@ export function JobsView() {
                   render: (row) => titleize(row.source_name),
                 },
                 {
+                  key: "apply_method",
+                  header: "Apply method",
+                  render: (row) =>
+                    row.application_email ? (
+                      <Badge tone="success" title={`The agent can email this application to ${row.application_email}`}>
+                        Auto (email)
+                      </Badge>
+                    ) : (
+                      <Badge tone="neutral" title="No published apply email; you submit this one yourself">
+                        Manual
+                      </Badge>
+                    ),
+                },
+                {
                   key: "posted",
                   header: "Posted",
                   sortKey: "created_at",

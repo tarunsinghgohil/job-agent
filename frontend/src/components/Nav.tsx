@@ -13,6 +13,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { href: "/", label: "Overview", group: "Work" },
+  { href: "/hunt", label: "Job hunt", group: "Work" },
   { href: "/jobs", label: "Jobs", group: "Work" },
   { href: "/applications", label: "Applications", group: "Work" },
   { href: "/analytics", label: "Analytics", group: "Work" },
@@ -52,34 +53,47 @@ export function Nav() {
         <span aria-hidden="true">☰</span>
         <span>Menu</span>
       </button>
-      <aside id="primary-nav" className={`sidebar ${open ? "is-open" : ""}`.trim()}>
-        <div className="brand">
-          <span className="brand-mark" aria-hidden="true">
-            JA
-          </span>
-          <span className="brand-text">
-            <strong>Job Agent</strong>
-            <small>Career operations</small>
-          </span>
-        </div>
+      <aside
+        id="primary-nav"
+        className={`sidebar ${open ? "is-open" : ""}`.trim()}
+      >
+        <Link href="/" className="brand-link">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true">
+              JA
+            </span>
+            <span className="brand-text">
+              <strong>Job Agent</strong>
+              <small>Career operations</small>
+            </span>
+          </div>
+        </Link>
 
         <nav className="nav" aria-label="Primary">
           {GROUPS.map((group) => (
             <div className="nav-group" key={group}>
               <p className="nav-group-title">{group}</p>
               <ul>
-                {NAV_ITEMS.filter((item) => item.group === group).map((item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      className={isActive(pathname, item.href) ? "nav-link is-active" : "nav-link"}
-                      aria-current={isActive(pathname, item.href) ? "page" : undefined}
-                      onClick={() => setOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ))}
+                {NAV_ITEMS.filter((item) => item.group === group).map(
+                  (item) => (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={
+                          isActive(pathname, item.href)
+                            ? "nav-link is-active"
+                            : "nav-link"
+                        }
+                        aria-current={
+                          isActive(pathname, item.href) ? "page" : undefined
+                        }
+                        onClick={() => setOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    </li>
+                  ),
+                )}
               </ul>
             </div>
           ))}
@@ -90,7 +104,11 @@ export function Nav() {
             <strong>{user?.full_name || user?.email || "Signed in"}</strong>
             {user?.email && user.full_name ? <small>{user.email}</small> : null}
           </div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => void logout()}>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => void logout()}
+          >
             <span>Sign out</span>
           </button>
         </div>

@@ -8,6 +8,7 @@ from app.api.v1.routers import (
     applications,
     auth,
     automation,
+    hunt,
     integrations,
     jobs,
     notifications,
@@ -15,6 +16,7 @@ from app.api.v1.routers import (
     profile,
     resumes,
     sources,
+    suggest,
     system,
 )
 
@@ -25,12 +27,14 @@ api_router.include_router(profile.router)
 api_router.include_router(policy.router)
 api_router.include_router(sources.router)
 api_router.include_router(jobs.router)
+api_router.include_router(hunt.router)
 api_router.include_router(resumes.router)
 api_router.include_router(answers.router)
 api_router.include_router(applications.router)
 api_router.include_router(notifications.router)
 api_router.include_router(integrations.router)
 api_router.include_router(automation.router)
+api_router.include_router(suggest.router)
 api_router.include_router(system.router)
 
 __all__ = ["api_router"]

@@ -309,6 +309,15 @@ def run_learning(db: Session, user_id: str, config: dict) -> dict[str, Any]:
     }
 
 
+def run_job_hunt(db: Session, user_id: str, config: dict) -> dict[str, Any]:
+    """The 3x Job Hunt: multi-query discovery, then rank and categorise."""
+    from app.services.hunt.pipeline import run_hunt
+
+    return run_hunt(
+        db, user_id, discover_jobs=bool(config.get("discover", True)), actor="job-hunt-agent"
+    )
+
+
 def _not_wired(name: str, reason: str):
     def _run(db: Session, user_id: str, config: dict) -> dict[str, Any]:
         raise NotImplementedError(reason)
@@ -329,6 +338,7 @@ def wire_agents() -> None:
         "application_preparation": run_application_preparation,
         "auto_apply": run_auto_apply,
         "learning": run_learning,
+        "job_hunt": run_job_hunt,
         # These two run on demand from their own endpoints rather than on a
         # schedule, because both need a specific job or resume as input.
         "resume_tailoring": _not_wired(

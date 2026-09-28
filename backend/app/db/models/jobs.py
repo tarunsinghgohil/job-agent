@@ -102,6 +102,9 @@ class Job(Base, UUIDPrimaryKeyMixin, TimestampMixin, SoftDeleteMixin):
     experience_min_years: Mapped[float | None] = mapped_column(Float)
     experience_max_years: Mapped[float | None] = mapped_column(Float)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # When the provider last modified the posting. Kept apart from posted_at so
+    # a 20-day-old job that was edited an hour ago is not mistaken for new.
+    source_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     status: Mapped[str] = mapped_column(String(30), default="new", index=True, nullable=False)
 

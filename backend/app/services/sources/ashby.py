@@ -136,7 +136,8 @@ class AshbyAdapter(JobSourceAdapter):
             industry=str(entry.get("department") or entry.get("team") or "").strip(),
             experience_min_years=exp_min,
             experience_max_years=exp_max,
-            posted_at=parse_iso_datetime(entry.get("publishedAt") or entry.get("updatedAt")),
+            posted_at=parse_iso_datetime(entry.get("publishedAt")),
+            source_updated_at=parse_iso_datetime(entry.get("updatedAt")),
             raw=entry,
         )
 

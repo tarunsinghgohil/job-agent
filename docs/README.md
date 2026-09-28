@@ -12,6 +12,7 @@
 - `product/APPLICATION_ANSWER_BANK.md` — reusable application answers.
 - `product/SCORING_MODEL.md` — job scoring and qualification.
 - `product/WORKFLOWS.md` — end-to-end user/system flows.
+- `product/JOB_HUNT.md` — 3x Job Hunt: query variations, location tiers, categorised shortlist.
 
 ## Architecture
 - `architecture/SYSTEM_ARCHITECTURE.md` — component/system design.

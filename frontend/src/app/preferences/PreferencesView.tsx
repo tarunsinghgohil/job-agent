@@ -11,6 +11,7 @@ import { TagInput } from "../../components/TagInput";
 import { Toggle } from "../../components/Toggle";
 import { useToast } from "../../components/Toast";
 import { api } from "../../lib/api";
+import { clearSuggestionCache } from "../../lib/suggest";
 import { numberFieldValue, toNumberOrNull } from "../../lib/format";
 import { usePending, useResource } from "../../lib/hooks";
 import type { Preferences } from "../../lib/types";
@@ -40,6 +41,7 @@ export function PreferencesView() {
     if (!form) return;
     await run("save", async () => {
       await toast.withToast(() => api.put("/api/v1/preferences", form), "Preferences saved.", "Could not save");
+      clearSuggestionCache();
       setDirty(false);
       prefs.reload();
     });
@@ -69,8 +71,8 @@ export function PreferencesView() {
         {(data) => (
           <>
             <Card title="Roles and locations">
-              <TagInput label="Target roles" values={data.target_roles} onChange={(v) => set("target_roles", v)} />
-              <TagInput label="Preferred locations" values={data.preferred_locations} onChange={(v) => set("preferred_locations", v)} />
+              <TagInput label="Target roles" suggest="role" values={data.target_roles} onChange={(v) => set("target_roles", v)} />
+              <TagInput label="Preferred locations" suggest="location" values={data.preferred_locations} onChange={(v) => set("preferred_locations", v)} />
               <FieldRow>
                 <Toggle label="Remote OK" checked={data.remote_ok} onChange={(v) => set("remote_ok", v)} />
                 <Toggle label="Remote only" checked={data.remote_only} onChange={(v) => set("remote_only", v)} />
@@ -113,20 +115,20 @@ export function PreferencesView() {
                   onChange={(e) => set("notice_period_days", Number(e.target.value) || 0)}
                 />
               </FieldRow>
-              <TagInput label="Employment types" values={data.employment_types} onChange={(v) => set("employment_types", v)} />
-              <TagInput label="Industries" values={data.industries} onChange={(v) => set("industries", v)} />
-              <TagInput label="Company types" values={data.company_types} onChange={(v) => set("company_types", v)} />
+              <TagInput label="Employment types" suggest="employment_type" values={data.employment_types} onChange={(v) => set("employment_types", v)} />
+              <TagInput label="Industries" suggest="industry" values={data.industries} onChange={(v) => set("industries", v)} />
+              <TagInput label="Company types" suggest="company_type" values={data.company_types} onChange={(v) => set("company_types", v)} />
             </Card>
 
             <Card title="Companies">
-              <TagInput label="Preferred companies" values={data.preferred_companies} onChange={(v) => set("preferred_companies", v)} />
-              <TagInput label="Excluded companies" values={data.excluded_companies} onChange={(v) => set("excluded_companies", v)} />
+              <TagInput label="Preferred companies" suggest="company" values={data.preferred_companies} onChange={(v) => set("preferred_companies", v)} />
+              <TagInput label="Excluded companies" suggest="company" values={data.excluded_companies} onChange={(v) => set("excluded_companies", v)} />
             </Card>
 
             <Card title="Keywords">
-              <TagInput label="Must-have keywords" values={data.must_have_keywords} onChange={(v) => set("must_have_keywords", v)} />
-              <TagInput label="Nice-to-have keywords" values={data.nice_to_have_keywords} onChange={(v) => set("nice_to_have_keywords", v)} />
-              <TagInput label="Excluded keywords" values={data.excluded_keywords} onChange={(v) => set("excluded_keywords", v)} />
+              <TagInput label="Must-have keywords" suggest="keyword" values={data.must_have_keywords} onChange={(v) => set("must_have_keywords", v)} />
+              <TagInput label="Nice-to-have keywords" suggest="keyword" values={data.nice_to_have_keywords} onChange={(v) => set("nice_to_have_keywords", v)} />
+              <TagInput label="Excluded keywords" suggest="keyword" values={data.excluded_keywords} onChange={(v) => set("excluded_keywords", v)} />
             </Card>
 
             <Card

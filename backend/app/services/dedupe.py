@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models.jobs import Job
 from app.services.normalize import (
+    apply_link_quality,
     canonical_url,
     norm_text,
     normalize_company,
@@ -33,6 +34,11 @@ FUZZY_TITLE_THRESHOLD = 0.82
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _aware(value: datetime) -> datetime:
+    """SQLite hands back naive datetimes; compare everything as UTC."""
+    return value if value.tzinfo is not None else value.replace(tzinfo=timezone.utc)
 
 
 def _sha256(*parts: str) -> str:
@@ -192,8 +198,22 @@ def merge_duplicate(
             if value is not None:
                 setattr(existing, attr, value)
 
+    # The one deliberate exception to "first writer wins": an application link
+    # that goes more directly to the employer (their ATS or careers page)
+    # replaces an aggregator copy, because that is the link worth applying via.
+    candidate_link = str(getattr(candidate, "apply_url", "") or getattr(candidate, "url", "") or "").strip()
+    if candidate_link and existing.apply_url and apply_link_quality(candidate_link) > apply_link_quality(
+        existing.apply_url
+    ):
+        existing.apply_url = candidate_link
+
     if existing.posted_at is None and candidate.posted_at is not None:
         existing.posted_at = candidate.posted_at
+    candidate_updated = getattr(candidate, "source_updated_at", None)
+    if candidate_updated is not None and (
+        existing.source_updated_at is None or _aware(candidate_updated) > _aware(existing.source_updated_at)
+    ):
+        existing.source_updated_at = candidate_updated
     if not existing.is_remote and candidate.is_remote:
         existing.is_remote = True
 

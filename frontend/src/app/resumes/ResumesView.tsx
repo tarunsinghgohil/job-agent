@@ -198,16 +198,19 @@ export function ResumesView() {
                 <FieldRow columns={3}>
                   <TagInput
                     label="Role focus"
+                    suggest="role"
                     values={resume.role_focus}
                     onChange={(v) => void updateFocus(resume, "role_focus", v)}
                   />
                   <TagInput
                     label="Industry focus"
+                    suggest="industry"
                     values={resume.industry_focus}
                     onChange={(v) => void updateFocus(resume, "industry_focus", v)}
                   />
                   <TagInput
                     label="Skill focus"
+                    suggest="skill"
                     values={resume.skill_focus}
                     onChange={(v) => void updateFocus(resume, "skill_focus", v)}
                   />

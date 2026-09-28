@@ -7,6 +7,7 @@ import { Card, CardGrid } from "../../components/Card";
 import { FieldRow, Input, Textarea } from "../../components/Field";
 import { FormActions } from "../../components/FormActions";
 import { PageHeader } from "../../components/PageHeader";
+import { SuggestInput } from "../../components/SuggestInput";
 import { AsyncBoundary, EmptyState } from "../../components/States";
 import { Toggle } from "../../components/Toggle";
 import { useToast } from "../../components/Toast";
@@ -176,7 +177,7 @@ export function ProfileView() {
                 <Input label="Email" type="email" value={data.email} onChange={(e) => set("email", e.target.value)} />
                 <Input label="Phone" value={data.phone} onChange={(e) => set("phone", e.target.value)} />
               </FieldRow>
-              <Input label="Location" value={data.location} onChange={(e) => set("location", e.target.value)} />
+              <SuggestInput label="Location" suggest="location" value={data.location} onChange={(v) => set("location", v)} />
               <Textarea label="Summary" rows={3} value={data.summary} onChange={(e) => set("summary", e.target.value)} />
               <FieldRow columns={3}>
                 <Input
@@ -225,8 +226,8 @@ export function ProfileView() {
                   ))}
                 </ul>
                 <FieldRow>
-                  <Input label="Company" value={expDraft.company} onChange={(e) => setExpDraft((d) => ({ ...d, company: e.target.value }))} />
-                  <Input label="Title" value={expDraft.title} onChange={(e) => setExpDraft((d) => ({ ...d, title: e.target.value }))} />
+                  <SuggestInput label="Company" suggest="company" value={expDraft.company} onChange={(v) => setExpDraft((d) => ({ ...d, company: v }))} />
+                  <SuggestInput label="Title" suggest="role" value={expDraft.title} onChange={(v) => setExpDraft((d) => ({ ...d, title: v }))} />
                 </FieldRow>
                 <Textarea
                   label="Description"
@@ -255,7 +256,7 @@ export function ProfileView() {
                 </ul>
                 <FieldRow>
                   <Input label="Name" value={projDraft.name} onChange={(e) => setProjDraft((d) => ({ ...d, name: e.target.value }))} />
-                  <Input label="Role" value={projDraft.role} onChange={(e) => setProjDraft((d) => ({ ...d, role: e.target.value }))} />
+                  <SuggestInput label="Role" suggest="role" value={projDraft.role} onChange={(v) => setProjDraft((d) => ({ ...d, role: v }))} />
                 </FieldRow>
                 <Button loading={isPending("add-proj")} onClick={() => void addProject()}>
                   Add project
@@ -309,7 +310,7 @@ export function ProfileView() {
                   ))}
                 </div>
                 <FieldRow>
-                  <Input label="Skill name" value={skillDraft.name} onChange={(e) => setSkillDraft((d) => ({ ...d, name: e.target.value }))} />
+                  <SuggestInput label="Skill name" suggest="skill" value={skillDraft.name} onChange={(v) => setSkillDraft((d) => ({ ...d, name: v }))} />
                   <Input
                     label="Years"
                     type="number"

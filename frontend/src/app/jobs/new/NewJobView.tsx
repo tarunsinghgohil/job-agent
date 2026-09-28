@@ -7,6 +7,7 @@ import { Button } from "../../../components/Button";
 import { Card } from "../../../components/Card";
 import { FieldRow, Input, Select, Textarea } from "../../../components/Field";
 import { PageHeader } from "../../../components/PageHeader";
+import { SuggestInput } from "../../../components/SuggestInput";
 import { Toggle } from "../../../components/Toggle";
 import { useToast } from "../../../components/Toast";
 import { api } from "../../../lib/api";
@@ -74,11 +75,11 @@ export function NewJobView() {
 
       <Card>
         <FieldRow>
-          <Input label="Title" required value={form.title} onChange={(e) => set("title", e.target.value)} />
-          <Input label="Company" required value={form.company} onChange={(e) => set("company", e.target.value)} />
+          <SuggestInput label="Title" suggest="role" required value={form.title} onChange={(v) => set("title", v)} />
+          <SuggestInput label="Company" suggest="company" required value={form.company} onChange={(v) => set("company", v)} />
         </FieldRow>
         <FieldRow>
-          <Input label="Location" value={form.location} onChange={(e) => set("location", e.target.value)} />
+          <SuggestInput label="Location" suggest="location" value={form.location} onChange={(v) => set("location", v)} />
           <Select
             label="Employment type"
             options={EMPLOYMENT_OPTIONS}
@@ -108,7 +109,7 @@ export function NewJobView() {
             value={numberFieldValue(form.salary_max_lpa)}
             onChange={(e) => set("salary_max_lpa", toNumberOrNull(e.target.value))}
           />
-          <Input label="Industry" value={form.industry} onChange={(e) => set("industry", e.target.value)} />
+          <SuggestInput label="Industry" suggest="industry" value={form.industry} onChange={(v) => set("industry", v)} />
         </FieldRow>
         <FieldRow>
           <Input

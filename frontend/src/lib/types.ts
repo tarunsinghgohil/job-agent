@@ -987,3 +987,205 @@ export interface SystemSetting {
   value: JsonValue;
   description: string;
 }
+
+/* --------------------------------------------------------------- job hunt */
+
+export type HuntWorkMode = "remote" | "hybrid" | "onsite";
+export const HUNT_WORK_MODES: HuntWorkMode[] = ["remote", "hybrid", "onsite"];
+export type HuntTierKind = "apply_first" | "review";
+export type HuntSeniority = "intern" | "junior" | "mid" | "senior" | "lead";
+export const HUNT_SENIORITY_LEVELS: HuntSeniority[] = ["intern", "junior", "mid", "senior", "lead"];
+export type HuntSemanticMode = "off" | "local" | "embeddings";
+export type HuntCategory = "apply_first" | "review" | "not_match";
+
+export interface HuntTier {
+  name: string;
+  group: string;
+  work_modes: HuntWorkMode[];
+  places: string[];
+  kind: HuntTierKind;
+}
+
+export type HuntWeightKey =
+  | "location"
+  | "role"
+  | "skills"
+  | "experience"
+  | "freshness"
+  | "semantic"
+  | "apply_link";
+
+export interface HuntConfig {
+  id?: string;
+  experience_years: number | null;
+  target_roles: string[];
+  skills: string[];
+  role_keywords: string[];
+  excluded_seniority: HuntSeniority[];
+  location_tiers: HuntTier[];
+  country: string;
+  country_places: string[];
+  accept_worldwide_remote: boolean;
+  auto_queries: boolean;
+  custom_queries: string[];
+  excluded_queries: string[];
+  max_queries: number;
+  results_per_query: number;
+  max_age_days: number;
+  apply_first_threshold: number;
+  min_skill_overlap: number;
+  weights: Partial<Record<HuntWeightKey, number>>;
+  semantic_mode: HuntSemanticMode;
+  respect_policy_filters: boolean;
+  notify_new_matches: boolean;
+  schedule_enabled: boolean;
+  schedule_cron: string;
+  next_run_at?: string | null;
+  last_run_at?: string | null;
+  last_assessed_at?: string | null;
+  updated_at?: string | null;
+}
+
+export interface HuntQuery {
+  label: string;
+  keywords: string;
+  location: string;
+  remote: boolean;
+  origin: "generated" | "custom";
+  tier: string;
+}
+
+export interface HuntQueryPreview {
+  queries: HuntQuery[];
+  search_sources: number;
+  board_sources: number;
+  board_keywords: string[];
+}
+
+export interface HuntItem {
+  job_id: string;
+  title: string;
+  company: string;
+  location: string;
+  source_name: string;
+  duplicate_sources: string[];
+  job_status: JobStatus;
+  url: string;
+  salary_min_lpa: number | null;
+  salary_max_lpa: number | null;
+  currency: string;
+  experience_min_years: number | null;
+  experience_max_years: number | null;
+  posted_at: string | null;
+  source_updated_at: string | null;
+  first_seen_at: string | null;
+  category: HuntCategory;
+  section: string;
+  tier_name: string;
+  tier_rank: number | null;
+  score: number;
+  strength: "strong" | "good" | "partial" | "weak" | "none";
+  work_mode: HuntWorkMode | "unknown";
+  remote_region: string;
+  seniority: HuntSeniority;
+  experience_fit: "strong" | "good" | "stretch" | "under" | "unknown";
+  skill_overlap: number | null;
+  matched_skills: string[];
+  missing_skills: string[];
+  semantic_score: number | null;
+  freshness_at: string | null;
+  freshness_basis: "posted" | "updated" | "first_seen" | "unknown";
+  freshness_hours: number | null;
+  freshness_label: string;
+  apply_link_type: "ats" | "company" | "aggregator" | "email" | "none";
+  apply_link_label: string;
+  best_apply_url: string;
+  public_contact_email: string;
+  reasons: string[];
+  highlights: string[];
+  warnings: string[];
+  breakdown: Record<string, number>;
+  explanation: string;
+  assessed_at: string | null;
+}
+
+export interface HuntSection {
+  key: string;
+  label: string;
+  kind: HuntCategory;
+  count: number;
+  items: HuntItem[];
+}
+
+export interface HuntBoard {
+  stats: {
+    total: number;
+    fresh_today: number;
+    apply_first: number;
+    review: number;
+    not_match: number;
+    remote: number;
+    by_tier: { name: string; count: number }[];
+  };
+  sections: HuntSection[];
+  not_match: { count: number; top_reasons: { reason: string; count: number }[] };
+  last_run_at: string | null;
+  last_run_summary: JsonObject;
+  last_assessed_at: string | null;
+  sources_enabled: number;
+}
+
+/** What the "Try it" preview returns: the assessment of an unsaved job. */
+export interface HuntPreviewResult {
+  category: HuntCategory;
+  section: string;
+  tier_name: string;
+  score: number;
+  strength: HuntItem["strength"];
+  work_mode: HuntItem["work_mode"];
+  remote_region: string;
+  seniority: HuntSeniority;
+  experience_fit: HuntItem["experience_fit"];
+  skill_overlap: number | null;
+  matched_skills: string[];
+  missing_skills: string[];
+  apply_link_type: HuntItem["apply_link_type"];
+  apply_link_label: string;
+  reasons: string[];
+  highlights: string[];
+  warnings: string[];
+  breakdown: Record<string, number>;
+  explanation: string;
+}
+
+export interface HuntEvidence {
+  evidence_id: string;
+  kind: string;
+  content: string;
+  score: number;
+  source: string;
+}
+
+export interface HuntJobDetail {
+  assessment: HuntItem | null;
+  evidence: HuntEvidence[];
+  /** Most points each breakdown factor can contribute to the score. */
+  breakdown_max: Record<string, number>;
+}
+
+export interface HuntProfileSuggestions {
+  experience_years: number | null;
+  skills: string[];
+  target_roles: string[];
+}
+
+export interface HuntRun {
+  id: string;
+  trigger: string;
+  status: AgentRunStatus;
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  summary: JsonObject;
+  error: string;
+}

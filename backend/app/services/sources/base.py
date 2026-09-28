@@ -62,6 +62,8 @@ class RawJob:
     experience_min_years: float | None = None
     experience_max_years: float | None = None
     posted_at: datetime | None = None
+    # Provider's last-modified time; distinct from the original posting date.
+    source_updated_at: datetime | None = None
     raw: dict = field(default_factory=dict)
 
 
@@ -311,6 +313,10 @@ class JobSourceAdapter(ABC):
     display_name: ClassVar[str]
     requires_credential: ClassVar[bool] = False
     config_schema: ClassVar[list[dict]] = []
+    # True for providers with a real search endpoint, which is what makes
+    # running several query variations worthwhile. Board adapters return a
+    # company's whole board, so they run once per discovery pass instead.
+    supports_search: ClassVar[bool] = False
 
     def __init__(self, config: dict | None = None, credential: str | None = None) -> None:
         self.config: dict = dict(config or {})
@@ -351,6 +357,27 @@ class JobSourceAdapter(ABC):
     def health(self) -> SourceTestResult:
         """Health probe; by default the same call as ``test_connection``."""
         return self.test_connection()
+
+    def search_many(self, queries: list[SourceQuery]) -> list[RawJob] | None:
+        """Answer several query variations at once, or return None.
+
+        Providers with strict request limits override this to make a single
+        request and filter locally, instead of one request per variation.
+        The default (None) makes discovery run each query separately.
+        """
+        return None
+
+    def query_signature(self, query: SourceQuery) -> tuple:
+        """What makes two queries different *to this provider*.
+
+        Discovery skips a query whose signature it already ran, so a provider
+        that ignores location is not asked the same question once per city.
+        """
+        return (
+            query.keyword_text().lower(),
+            query.primary_location().lower(),
+            bool(query.remote_only),
+        )
 
     # -- shared helpers -----------------------------------------------------
     def _limit(self, query: SourceQuery, ceiling: int = 200) -> int:

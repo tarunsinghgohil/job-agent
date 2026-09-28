@@ -35,6 +35,7 @@ from app.db.models.identity import (
     User,
     UserSession,
 )
+from app.db.models.hunt import HuntConfig, HuntResult
 from app.db.models.jobs import Job, JobEvent, JobMatch, JobSkill, JobSource
 from app.db.models.ops import (
     AuditLog,
@@ -74,6 +75,9 @@ __all__ = [
     "JobSkill",
     "JobMatch",
     "JobEvent",
+    # job hunt
+    "HuntConfig",
+    "HuntResult",
     # applications
     "Application",
     "ApplicationStatusHistory",

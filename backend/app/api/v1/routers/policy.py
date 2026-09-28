@@ -85,6 +85,9 @@ def update_preferences(
 
     db.flush()
     if changes:
+        from app.services.suggest import invalidate_user
+
+        invalidate_user(ctx.user_id)
         audit.record(
             db,
             action="preferences.update",

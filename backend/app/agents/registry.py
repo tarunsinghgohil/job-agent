@@ -35,6 +35,9 @@ MAX_ERROR_CHARS = 2000
 
 # Agents that contact someone outside the product. These are created disabled.
 OUTBOUND_AGENT_KEYS = frozenset({"auto_apply"})
+# Agents the user switches on from their own screen. Also created disabled, so
+# a fresh install does not start hitting job sources on a schedule unasked.
+OPT_IN_AGENT_KEYS = OUTBOUND_AGENT_KEYS | frozenset({"job_hunt"})
 
 
 class UnknownAgentError(LookupError):
@@ -105,7 +108,7 @@ def ensure_agent_definition(db: Session, user_id: str, spec: AgentSpec) -> Agent
             # turns this on deliberately; it is not something to inherit from a
             # default. (The agent additionally refuses to run unless
             # auto_submit_enabled is set and approval_required is cleared.)
-            enabled=spec.key not in OUTBOUND_AGENT_KEYS,
+            enabled=spec.key not in OPT_IN_AGENT_KEYS,
         )
         db.add(definition)
         db.flush()
@@ -432,6 +435,20 @@ register_agent(
             "postings, within the daily cap. Never touches LinkedIn or portal forms."
         ),
         default_cron="0 10 * * *",
+    ),
+    _pending("app/agents/wiring.py"),
+)
+
+register_agent(
+    AgentSpec(
+        key="job_hunt",
+        name="3x Job Hunt",
+        description=(
+            "Runs the full hunt: generates query variations, searches enabled sources, "
+            "ranks every job by location priority, experience, skills and freshness, "
+            "and alerts on new apply-first matches."
+        ),
+        default_cron="0 2,8,14,20 * * *",
     ),
     _pending("app/agents/wiring.py"),
 )

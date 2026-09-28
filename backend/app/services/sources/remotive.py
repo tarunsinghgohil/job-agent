@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from app.services.normalize import parse_experience, parse_salary
+from app.services.normalize import norm_text, parse_experience, parse_salary
 from app.services.sources.base import (
     JobSourceAdapter,
     RawJob,
@@ -29,6 +29,7 @@ class RemotiveAdapter(JobSourceAdapter):
     adapter_type = "remotive"
     display_name = "Remotive (remote jobs)"
     requires_credential = False
+    supports_search = True
     config_schema = [
         {
             "key": "category",
@@ -59,6 +60,31 @@ class RemotiveAdapter(JobSourceAdapter):
             message="Remotive API reachable.",
             details={"job_count": count},
         )
+
+    # Remotive blocks clients that call more than twice a minute and asks for
+    # at most ~4 fetches a day, so a batch of query variations is answered
+    # with ONE request and filtered locally.
+    BATCH_LIMIT = 300
+
+    def search_many(self, queries: list[SourceQuery]) -> list[RawJob] | None:
+        params: dict[str, Any] = {
+            "limit": self.BATCH_LIMIT,
+            "category": self.config_value("category") or "software-dev",
+        }
+        if self.config_value("company_name"):
+            params["company_name"] = self.config_value("company_name")
+        payload = http_get_json(API_URL, params=params)
+        entries = payload.get("jobs", []) if isinstance(payload, dict) else []
+        jobs = [self._to_raw_job(entry) for entry in entries if isinstance(entry, dict)]
+        phrases = [_core_phrase(q.keyword_text()) for q in queries]
+        phrases = [p for p in phrases if p]
+        if not phrases:
+            return jobs
+        return [job for job in jobs if any(_title_matches(job.title, p) for p in phrases)]
+
+    def query_signature(self, query: SourceQuery) -> tuple:
+        # Every Remotive job is remote and the API has no location filter.
+        return (query.keyword_text().lower(),)
 
     def search(self, query: SourceQuery) -> list[RawJob]:
         limit = self._limit(query)
@@ -102,3 +128,23 @@ class RemotiveAdapter(JobSourceAdapter):
             posted_at=parse_iso_datetime(entry.get("publication_date")),
             raw=entry,
         )
+
+
+_SENIORITY_WORDS = {"senior", "sr", "junior", "jr", "lead", "staff", "principal", "mid", "level"}
+_GENERIC_WORDS = _SENIORITY_WORDS | {"developer", "engineer", "remote", "india", "the", "and", "of"}
+
+
+def _core_phrase(text: str) -> str:
+    """'Senior React Developer' -> 'react developer' (seniority words dropped)."""
+    words = [w for w in norm_text(text).split() if w not in _SENIORITY_WORDS]
+    return " ".join(words)
+
+
+def _title_matches(title: str, phrase: str) -> bool:
+    """Phrase containment, or every distinctive word of it in the title."""
+    title_norm = norm_text(title)
+    if phrase in title_norm:
+        return True
+    distinctive = [w for w in phrase.split() if w not in _GENERIC_WORDS]
+    title_words = set(title_norm.split())
+    return bool(distinctive) and all(w in title_words for w in distinctive)

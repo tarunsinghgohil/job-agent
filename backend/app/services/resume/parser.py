@@ -70,7 +70,42 @@ SKILL_VOCABULARY: dict[str, tuple[str, ...]] = {
     "WebSockets": ("websocket", "websockets", "socket.io"),
     "Jenkins": ("jenkins",),
     "Terraform": ("terraform",),
-    "OpenAI": ("openai", "gpt", "llm"),
+    "OpenAI": ("openai", "gpt", "chatgpt"),
+    "AI/LLM": (
+        "llm", "llms", "large language model", "large language models",
+        "genai", "gen ai", "generative ai", "ai/llm",
+    ),
+    "RAG": ("rag", "retrieval augmented generation", "retrieval-augmented generation"),
+    "Angular": ("angular", "angularjs", "angular.js"),
+    "Vue.js": ("vue", "vue.js", "vuejs"),
+    "Storybook": ("storybook",),
+    "Recharts": ("recharts",),
+    "D3.js": ("d3", "d3.js"),
+    "Micro Frontends": ("micro frontend", "micro frontends", "micro-frontend", "module federation"),
+}
+
+# Stack shorthands that stand for several canonical skills at once. A resume
+# or posting that says "MERN" is claiming (or asking for) all four.
+SKILL_GROUPS: dict[str, tuple[str, ...]] = {
+    "mern": ("MongoDB", "Express.js", "React", "Node.js"),
+    "mern stack": ("MongoDB", "Express.js", "React", "Node.js"),
+    "mean": ("MongoDB", "Express.js", "Angular", "Node.js"),
+    "mean stack": ("MongoDB", "Express.js", "Angular", "Node.js"),
+    "mevn": ("MongoDB", "Express.js", "Vue.js", "Node.js"),
+    "pern": ("PostgreSQL", "Express.js", "React", "Node.js"),
+}
+
+# Extra aliases that are only safe when the whole input *is* the alias, e.g. a
+# skill chip typed as "JS". Matching "js" inside running text would fire on
+# every "Node.js" and "Next.js".
+_EXACT_ONLY_ALIASES: dict[str, str] = {
+    "js": "JavaScript",
+    "ecma": "JavaScript",
+    "node": "Node.js",
+    "next": "Next.js",
+    "express": "Express.js",
+    "postgres/mysql": "PostgreSQL",
+    "postgresql/mysql": "PostgreSQL",
 }
 
 # Headings that mark a section. Order does not matter; position in the text does.
@@ -171,17 +206,95 @@ def detect_sections(text: str) -> dict[str, str]:
     }
 
 
+_ALIAS_PATTERNS: dict[str, re.Pattern[str]] = {}
+
+
+def _alias_pattern(needle: str) -> re.Pattern[str]:
+    """Whole-word pattern for a normalized alias.
+
+    Plain substring matching made short aliases fire inside ordinary words:
+    "ts" matched "requirements", "git" matched "digital", "java" matched
+    "javascript". Word boundaries are expressed as "not alphanumeric" so
+    aliases that contain dots or pluses ("node.js", "c++") still work.
+    """
+    pattern = _ALIAS_PATTERNS.get(needle)
+    if pattern is None:
+        pattern = re.compile(rf"(?<![a-z0-9]){re.escape(needle)}(?![a-z0-9])")
+        _ALIAS_PATTERNS[needle] = pattern
+    return pattern
+
+
+def contains_term(term: str, text: str, *, normalized: bool = False) -> bool:
+    """True when ``term`` appears in ``text`` as a whole word or phrase."""
+    needle = norm_text(term)
+    if not needle:
+        return False
+    haystack = text if normalized else norm_text(text)
+    return bool(_alias_pattern(needle).search(haystack))
+
+
 def extract_skills(text: str) -> list[str]:
-    """Find canonical skills present in the text, preserving vocabulary order."""
+    """Find canonical skills present in the text, preserving vocabulary order.
+
+    Stack shorthands such as "MERN" expand into their member skills.
+    """
     haystack = norm_text(text)
     found: list[str] = []
     for canonical, aliases in SKILL_VOCABULARY.items():
         for alias in aliases:
             needle = norm_text(alias)
-            if needle and needle in haystack:
+            if needle and _alias_pattern(needle).search(haystack):
                 found.append(canonical)
                 break
+    for shorthand, members in SKILL_GROUPS.items():
+        if _alias_pattern(shorthand).search(haystack):
+            for member in members:
+                if member not in found:
+                    found.append(member)
     return found
+
+
+def canonicalize_skill(name: str) -> list[str]:
+    """Map one user-typed skill to canonical skill names.
+
+    "ReactJS" -> ["React"], "MERN" -> the four MERN skills, "JS" ->
+    ["JavaScript"]. A skill outside the vocabulary is kept as typed so custom
+    skills ("Recoil", "HIMS") still participate in matching by name.
+    """
+    raw = (name or "").strip()
+    key = norm_text(raw)
+    if not key:
+        return []
+    if key in SKILL_GROUPS:
+        return list(SKILL_GROUPS[key])
+    if key in _EXACT_ONLY_ALIASES:
+        return [_EXACT_ONLY_ALIASES[key]]
+    for canonical, aliases in SKILL_VOCABULARY.items():
+        if key == norm_text(canonical) or any(key == norm_text(a) for a in aliases):
+            return [canonical]
+    # Composite chips like "PostgreSQL/MySQL" or "React + Redux".
+    parts = [p for p in re.split(r"\s*(?:/|\+|,|&|\band\b)\s*", raw) if p.strip()]
+    if len(parts) > 1:
+        out: list[str] = []
+        for part in parts:
+            for item in canonicalize_skill(part):
+                if item not in out:
+                    out.append(item)
+        return out
+    return [raw]
+
+
+def normalize_skill_list(names: list[str] | None) -> list[str]:
+    """Canonicalize and de-duplicate a list of skills, preserving order."""
+    out: list[str] = []
+    seen: set[str] = set()
+    for name in names or []:
+        for canonical in canonicalize_skill(str(name)):
+            key = canonical.lower()
+            if key not in seen:
+                seen.add(key)
+                out.append(canonical)
+    return out
 
 
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")

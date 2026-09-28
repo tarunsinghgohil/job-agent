@@ -310,6 +310,145 @@ def extract_application_email(text: str | None) -> str:
     return candidates[0][1]
 
 
+# ---------------------------------------------------------------------------
+# Application link quality
+# ---------------------------------------------------------------------------
+# Hosts of applicant-tracking systems. A link here is the employer's own
+# application form, which is what an applicant actually wants.
+_ATS_HOSTS: dict[str, str] = {
+    "greenhouse.io": "Greenhouse",
+    "lever.co": "Lever",
+    "ashbyhq.com": "Ashby",
+    "myworkdayjobs.com": "Workday",
+    "myworkdaysite.com": "Workday",
+    "workday.com": "Workday",
+    "smartrecruiters.com": "SmartRecruiters",
+    "workable.com": "Workable",
+    "bamboohr.com": "BambooHR",
+    "recruitee.com": "Recruitee",
+    "keka.com": "Keka",
+    "darwinbox.in": "Darwinbox",
+    "darwinbox.com": "Darwinbox",
+    "freshteam.com": "Freshteam",
+    "zohorecruit.com": "Zoho Recruit",
+    "zohorecruit.in": "Zoho Recruit",
+    "icims.com": "iCIMS",
+    "jobvite.com": "Jobvite",
+    "teamtailor.com": "Teamtailor",
+    "breezy.hr": "Breezy HR",
+    "personio.de": "Personio",
+    "personio.com": "Personio",
+    "rippling.com": "Rippling",
+    "taleo.net": "Taleo",
+    "successfactors.com": "SuccessFactors",
+    "oraclecloud.com": "Oracle Recruiting",
+    "jazzhr.com": "JazzHR",
+    "applytojob.com": "JazzHR",
+    "turbohire.co": "TurboHire",
+    "superset.com": "Superset",
+}
+
+# Job boards and aggregators. Useful for discovery, but the link usually
+# leads to a copy of the posting rather than the employer's form.
+_AGGREGATOR_HOSTS: dict[str, str] = {
+    "linkedin.com": "LinkedIn",
+    "indeed.com": "Indeed",
+    "indeed.co.in": "Indeed",
+    "naukri.com": "Naukri",
+    "glassdoor.com": "Glassdoor",
+    "glassdoor.co.in": "Glassdoor",
+    "adzuna.com": "Adzuna",
+    "adzuna.in": "Adzuna",
+    "remotive.com": "Remotive",
+    "wellfound.com": "Wellfound",
+    "angel.co": "Wellfound",
+    "instahyre.com": "Instahyre",
+    "foundit.in": "Foundit",
+    "monsterindia.com": "Foundit",
+    "cutshort.io": "Cutshort",
+    "iimjobs.com": "iimjobs",
+    "hirist.tech": "Hirist",
+    "hirist.com": "Hirist",
+    "weworkremotely.com": "We Work Remotely",
+    "remoteok.com": "Remote OK",
+    "remoteok.io": "Remote OK",
+    "shine.com": "Shine",
+    "timesjobs.com": "TimesJobs",
+    "apna.co": "Apna",
+    "simplyhired.com": "SimplyHired",
+    "ziprecruiter.com": "ZipRecruiter",
+    "jooble.org": "Jooble",
+    "talent.com": "Talent.com",
+    "google.com": "Google Jobs",
+}
+
+# Ordered from most to least useful to an applicant.
+APPLY_LINK_QUALITY: dict[str, float] = {
+    "ats": 1.0,
+    "company": 0.9,
+    "email": 0.8,
+    "aggregator": 0.5,
+    "none": 0.2,
+}
+
+
+def _host_of(url: str) -> str:
+    try:
+        host = urlsplit(url.strip()).netloc.lower()
+    except ValueError:
+        return ""
+    host = host.split("@")[-1].split(":")[0]
+    return host[4:] if host.startswith("www.") else host
+
+
+def _match_host(host: str, table: dict[str, str]) -> str | None:
+    for suffix, label in table.items():
+        if host == suffix or host.endswith("." + suffix):
+            return label
+    return None
+
+
+def classify_apply_url(url: str | None) -> tuple[str, str]:
+    """Return ``(link_type, label)`` for an application link.
+
+    ``link_type`` is one of ``ats``, ``company``, ``aggregator`` or ``none``.
+    Anything that is neither a known ATS nor a known aggregator is treated as
+    the employer's own site, which is the common case for career pages.
+    """
+    if not url or not str(url).strip():
+        return ("none", "")
+    host = _host_of(str(url))
+    if not host:
+        return ("none", "")
+    ats = _match_host(host, _ATS_HOSTS)
+    if ats:
+        return ("ats", ats)
+    aggregator = _match_host(host, _AGGREGATOR_HOSTS)
+    if aggregator:
+        return ("aggregator", aggregator)
+    return ("company", host)
+
+
+def apply_link_quality(url: str | None) -> float:
+    return APPLY_LINK_QUALITY[classify_apply_url(url)[0]]
+
+
+def best_apply_link(*urls: str | None) -> tuple[str, str, str]:
+    """Pick the most direct link among candidates: ``(url, link_type, label)``.
+
+    Ties keep the earliest candidate, so callers pass the preferred field first.
+    """
+    best: tuple[float, str, str, str] = (-1.0, "", "none", "")
+    for url in urls:
+        if not url or not str(url).strip():
+            continue
+        link_type, label = classify_apply_url(url)
+        quality = APPLY_LINK_QUALITY[link_type]
+        if quality > best[0]:
+            best = (quality, str(url).strip(), link_type, label)
+    return (best[1], best[2], best[3])
+
+
 def jaccard(a: set[str], b: set[str]) -> float:
     if not a or not b:
         return 0.0

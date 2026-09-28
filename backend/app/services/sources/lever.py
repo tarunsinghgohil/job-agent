@@ -128,6 +128,7 @@ class LeverAdapter(JobSourceAdapter):
             experience_min_years=exp_min,
             experience_max_years=exp_max,
             posted_at=_epoch_millis_to_datetime(entry.get("createdAt")),
+            source_updated_at=_epoch_millis_to_datetime(entry.get("updatedAt")),
             raw=entry,
         )
 
