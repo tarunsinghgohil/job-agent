@@ -1,0 +1,62 @@
+# Render Blueprint: Postgres + API + web, the hosted equivalent of docker-compose.yml.
+#
+# Create it from the Render dashboard with New -> Blueprint and pick this repo.
+# The values marked `sync: false` are asked for once, at creation time:
+#   CORS_ORIGINS        https://<web service name>.onrender.com
+#   NEXT_PUBLIC_API_URL https://<api service name>.onrender.com
+# Render shows each service's real URL on its page; if a name was taken it adds
+# a suffix, so fix these two values (and redeploy the web service, which bakes
+# NEXT_PUBLIC_API_URL into its bundle at build time) if they differ.
+#
+# Redis is not in here: compose starts it, but the app does not use it yet.
+
+databases:
+  - name: job-agent-db
+    databaseName: jobagent
+    user: jobagent
+    plan: free
+
+services:
+  - type: web
+    name: job-agent-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: job-agent-db
+          property: connectionString
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DATA_DIR
+        value: /app/data
+      # The web app and API live on different onrender.com hosts, which browsers
+      # treat as different sites.
+      - key: COOKIE_SAMESITE
+        value: none
+      - key: CORS_ORIGINS
+        sync: false
+      - key: BOOTSTRAP_EMAIL
+        sync: false
+      - key: BOOTSTRAP_PASSWORD
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: TIMEZONE
+        value: Asia/Kolkata
+
+  - type: web
+    name: job-agent-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./frontend/Dockerfile
+    dockerContext: ./frontend
+    envVars:
+      # Render passes service env vars to Docker builds as build args.
+      - key: NEXT_PUBLIC_API_URL
+        sync: false

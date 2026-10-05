@@ -24,20 +24,26 @@ REFRESH_COOKIE = "refresh_token"
 
 
 def _set_refresh_cookie(response: Response, token: str) -> None:
-    """httpOnly so JavaScript cannot read it; SameSite=lax to blunt CSRF."""
+    """httpOnly so JavaScript cannot read it; SameSite=lax (by default) to blunt CSRF."""
     response.set_cookie(
         key=REFRESH_COOKIE,
         value=token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        # Browsers reject SameSite=None cookies that are not Secure.
+        secure=settings.is_production or settings.cookie_samesite == "none",
+        samesite=settings.cookie_samesite,
         max_age=settings.refresh_token_ttl_days * 24 * 3600,
         path="/api/v1/auth",
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
-    response.delete_cookie(REFRESH_COOKIE, path="/api/v1/auth")
+    response.delete_cookie(
+        REFRESH_COOKIE,
+        path="/api/v1/auth",
+        secure=settings.is_production or settings.cookie_samesite == "none",
+        samesite=settings.cookie_samesite,
+    )
 
 
 @router.post("/login", response_model=TokenResponse)

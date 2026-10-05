@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # --- auth ---
     access_token_ttl_minutes: int = 30
     refresh_token_ttl_days: int = 14
+    # "none" when the web app and API are on different sites (e.g. two
+    # *.onrender.com hosts), otherwise the browser never sends the refresh cookie.
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     bootstrap_email: str = ""
     bootstrap_password: str = ""
 
@@ -106,8 +109,16 @@ class Settings(BaseSettings):
         return p / "uploads"
 
     def resolved_database_url(self) -> str:
-        """Make relative SQLite paths absolute so the CWD cannot change the DB."""
+        """Make relative SQLite paths absolute so the CWD cannot change the DB.
+
+        Hosted Postgres (Render, Heroku, ...) hands out ``postgres://`` or
+        ``postgresql://`` URLs, which SQLAlchemy maps to psycopg2; this app
+        ships psycopg 3, so the driver is pinned explicitly.
+        """
         url = self.database_url
+        for scheme in ("postgres://", "postgresql://"):
+            if url.startswith(scheme):
+                return "postgresql+psycopg://" + url[len(scheme):]
         prefix = "sqlite+pysqlite:///./"
         if url.startswith(prefix):
             rel = url[len(prefix):]
